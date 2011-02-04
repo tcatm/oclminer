@@ -48,6 +48,7 @@ static int opt_n_threads = 1;
 static char *rpc_url = DEF_RPC_URL;
 static char *userpass = DEF_RPC_USERPASS;
 
+_clState *clStates[16];
 
 struct option_help {
 	const char	*name;
@@ -251,14 +252,8 @@ static void *miner_thread(void *thr_id_int)
 
 	cl_int status;
 
-	_clState *clState;
+	_clState *clState = clStates[thr_id];
 
-	char name[32];
-
-	printf("Init GPU %i\n", thr_id);
-	clState = initCl(thr_id, name, sizeof(name));
-	printf("initCl() finished. Found %s\n", name);
-	
 	status = clSetKernelArg(clState->kernel, 0,  sizeof(cl_mem), (void *)&clState->inputBuffer);
 	if(status != CL_SUCCESS) { printf("Error: Setting kernel argument 1.\n"); return false; }
 
@@ -317,8 +312,6 @@ static void *miner_thread(void *thr_id_int)
 		int threads = 102400;
 		globalThreads[0] = threads;
 		localThreads[0] = 128;
-
-		printf("%i\n", work[frame].blk.nonce);
 
 		status = clEnqueueWriteBuffer(clState->commandQueue, clState->inputBuffer, CL_TRUE, 0,
 				sizeof(dev_blk_ctx), (void *)&work[frame].blk, 0, NULL, NULL);
@@ -480,9 +473,15 @@ int main (int argc, char *argv[])
 		return nDevs;
 	}
 
+	char name[32];
+
 	/* start mining threads */
-	for (i = 0; i < opt_n_threads; i++) {
+	for (i = 0; i < nDevs; i++) {
 		pthread_t t;
+
+		printf("Init GPU %i\n", i);
+		clStates[i] = initCl(i, name, sizeof(name));
+		printf("initCl() finished. Found %s\n", name);
 
 		if (pthread_create(&t, NULL, miner_thread,
 				   (void *)(unsigned long) i)) {
