@@ -1,10 +1,6 @@
 #define rotr(x, n) rotate(x, (uint)(32 - n))
 
-#if WORKGROUPSIZE
-#define WGS __attribute__((reqd_work_group_size(WORKGROUPSIZE, 1, 1)))
-#else
-#define WGS
-#endif
+#define WGS __attribute__((reqd_work_group_size(128, 1, 1)))
 
 __constant uint K[64] = {
   0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
@@ -281,7 +277,7 @@ __kernel __attribute__((vec_type_hint(uint))) WGS void oclminer(
     W12 = W12 + (rotr(W13, 7) ^ rotr(W13, 18) ^ (W13 >> 3)) + W5 + (rotr(W10, 17) ^ rotr(W10, 19) ^ (W10 >> 10)); 
     D = D + (rotr(A, 6) ^ rotr(A, 11) ^ rotr(A, 25)) + (C ^ (A & (B ^ C))) + K[60] + W12; H = H + D;
 
-    if(H + 0x5be0cd19 == 0) res = ~0;
+	res |= (H==0xa41f32e7);
   }
 
   output[myid] = res;
