@@ -247,6 +247,14 @@ static bool getwork(struct work_t *work) {
 	return true;
 } 
 
+static void submit_nonce(struct work_t *work, uint32_t nonce) {
+       work->data[64+12+0] = (nonce>>0) & 0xff;
+       work->data[64+12+1] = (nonce>>8) & 0xff;
+       work->data[64+12+2] = (nonce>>16) & 0xff;
+       work->data[64+12+3] = (nonce>>24) & 0xff;
+       submit_work(work);
+}
+
 static void *miner_thread(void *thr_id_int)
 {
 	int thr_id = (unsigned long) thr_id_int;
@@ -371,11 +379,7 @@ static void *miner_thread(void *thr_id_int)
 			if(rc && bestG <= *target) {
 				printf("Found solution for %08x: %08x %u\n", *target, bestG, nonce);
 
-				work[res_frame].data[64+12+0] = (nonce>>0) & 0xff;
-				work[res_frame].data[64+12+1] = (nonce>>8) & 0xff;
-				work[res_frame].data[64+12+2] = (nonce>>16) & 0xff;
-				work[res_frame].data[64+12+3] = (nonce>>24) & 0xff;
-				submit_work(&work[res_frame]);
+				submit_nonce(&work[res_frame], nonce);
 
 				block++;
 
