@@ -277,8 +277,10 @@ static void *miner_thread(void *thr_id_int)
 	int res_frame = 0;
 	int my_block = block;
 	bool need_work = true;
+	unsigned long hashes_done;
+	hashes_done = 0;
+
 	while (1) {
-		unsigned long hashes_done;
 		struct timeval tv_start;
 		bool rc;
 
@@ -315,7 +317,9 @@ static void *miner_thread(void *thr_id_int)
 			need_work = false;
 		}
 
-		hashes_done = 0;
+		if (hashes_done != 0)
+			hashmeter(thr_id, &tv_start, hashes_done);
+
 		gettimeofday(&tv_start, NULL);
 	
 		int threads = 102400 * 4;
@@ -325,6 +329,8 @@ static void *miner_thread(void *thr_id_int)
 		status = clEnqueueWriteBuffer(clState->commandQueue, clState->inputBuffer, CL_TRUE, 0,
 				sizeof(dev_blk_ctx), (void *)&work[frame].blk, 0, NULL, NULL);
 		if(status != CL_SUCCESS) { printf("Error: clEnqueueWriteBuffer failed.\n"); return 0; }
+
+        clFinish(clState->commandQueue);
 
         status = clEnqueueNDRangeKernel(clState->commandQueue, clState->kernel, 1, NULL, 
 				globalThreads, localThreads, 0,  NULL, NULL);
@@ -377,13 +383,9 @@ static void *miner_thread(void *thr_id_int)
 			}
 		}
 
-        clFinish(clState->commandQueue);
-
         status = clEnqueueReadBuffer(clState->commandQueue, clState->outputBuffer, CL_TRUE, 0, 
 				sizeof(uint32_t) * threads, res, 0, NULL, NULL);   
         if(status != CL_SUCCESS) { printf("Error: clEnqueueReadBuffer failed. (clEnqueueReadBuffer)\n"); return 0; }
-
-        clFinish(clState->commandQueue);
 
 		res_frame = frame;
 		work[res_frame].ready = threads;
@@ -393,8 +395,6 @@ static void *miner_thread(void *thr_id_int)
 
 		if (work[frame].blk.nonce > 4000000 - threads)
 			need_work = true;
-
-		hashmeter(thr_id, &tv_start, hashes_done);
 
 		failures = 0;
 	}
