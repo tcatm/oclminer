@@ -223,7 +223,8 @@ static void hashmeter(int thr_id, struct timeval *tv_start,
 }
 
 static void print_hashmeter(double hashrate) {
-	printf("HashMeter: %.2f Mhash/sec\n", hashrate / 1000);
+	printf("\r                                                \rHashMeter: %.2f Mhash/sec", hashrate / 1000);
+	fflush(stdout);
 }
 
 
