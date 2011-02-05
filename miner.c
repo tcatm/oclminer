@@ -215,15 +215,10 @@ static void hashmeter(int thr_id, struct timeval *tv_start,
 	secs = (double)diff.tv_sec + ((double)diff.tv_usec / 1000000.0);
 
 	hashrates[thr_id] = khashes / secs;
-	
-	if (opt_debug)
-		printf("HashMeter(%d): %lu hashes, %.2f khash/sec\n",
-			   thr_id, hashes_done,
-			   khashes / secs);
 }
 
-static void print_hashmeter(double hashrate) {
-	printf("\r                                                \rHashMeter: %.2f Mhash/sec", hashrate / 1000);
+static void print_hashmeter(double hashrate, char *rates) {
+	printf("\r                                                                            \rHashMeter: %.2f Mhash/sec (%s)", hashrate / 1000, rates);
 	fflush(stdout);
 }
 
@@ -516,10 +511,19 @@ int main (int argc, char *argv[])
 	while (program_running) {
 		sleep(STAT_SLEEP_INTERVAL);
 		double hashrate = 0;
-		for(i = 0; i < nDevs; i++)
-			hashrate += hashrates[i];
+		char rates[128];
+		char buffer[16];
+		rates[0] = 0;
 
-		print_hashmeter(hashrate);
+		for(i = 0; i < nDevs; i++) {
+			hashrate += hashrates[i];
+			sprintf(buffer, "%.02f", hashrates[i] / 1000);
+			strcat(rates, buffer);
+
+			if (i != nDevs-1) strcat(rates, " ");
+		}
+
+		print_hashmeter(hashrate, rates);
 
 	}
 
