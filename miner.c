@@ -17,6 +17,7 @@
 #include <unistd.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <sys/select.h>
 #include <pthread.h>
 #include <getopt.h>
 #include <jansson.h>
@@ -510,8 +511,29 @@ int main (int argc, char *argv[])
 	fprintf(stderr, "%d miner threads started\n", i);
 
 	/* main loop */
+	struct timeval tv;
+	fd_set readfds;
+
+	int ret;
+
 	while (program_running) {
-		sleep(STAT_SLEEP_INTERVAL);
+
+		FD_ZERO(&readfds);
+		FD_SET(0, &readfds);
+
+		tv.tv_sec = STAT_SLEEP_INTERVAL;
+		tv.tv_usec = 0;
+
+		ret = select(1, &readfds, NULL, NULL, &tv);
+
+		if (ret) {
+			if (FD_ISSET(0, &readfds)) {
+				getchar();
+				printf("Forcing getwork\n");
+				block++;
+			}
+		}
+
 		double hashrate = 0;
 		char rates[128];
 		char buffer[16];
