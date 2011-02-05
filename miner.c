@@ -48,6 +48,8 @@ static int opt_n_threads = 1;
 static char *rpc_url = DEF_RPC_URL;
 static char *userpass = DEF_RPC_USERPASS;
 
+int block = 0;
+
 _clState *clStates[16];
 
 struct option_help {
@@ -268,13 +270,14 @@ static void *miner_thread(void *thr_id_int)
 
 	int frame = 0;
 	int res_frame = 0;
+	int my_block = block;
 	bool need_work = true;
 	while (1) {
 		unsigned long hashes_done;
 		struct timeval tv_start;
 		bool rc;
 
-		if (need_work) {
+		if (need_work || my_block != block) {
 			frame++;
 			frame %= 2;
 
@@ -303,6 +306,7 @@ static void *miner_thread(void *thr_id_int)
 			work[frame].valid = true;
 			work[frame].ready = 0;
 			
+			my_block = block;
 			need_work = false;
 		}
 
@@ -361,6 +365,8 @@ static void *miner_thread(void *thr_id_int)
 				work[res_frame].data[64+12+2] = (nonce>>16) & 0xff;
 				work[res_frame].data[64+12+3] = (nonce>>24) & 0xff;
 				submit_work(&work[res_frame]);
+
+				block++;
 
 				need_work = true;
 			}
