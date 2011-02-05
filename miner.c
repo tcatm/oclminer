@@ -33,7 +33,7 @@
 #define DEF_RPC_USERPASS	"rpcuser:rpcpass"
 
 enum {
-	STAT_SLEEP_INTERVAL		= 100,
+	STAT_SLEEP_INTERVAL		= 1,
 	STAT_CTR_INTERVAL		= 10000000,
 	FAILURE_INTERVAL		= 30,
 };
@@ -50,6 +50,7 @@ static char *userpass = DEF_RPC_USERPASS;
 
 int block = 0;
 
+double hashrates[16];
 _clState *clStates[16];
 
 struct option_help {
@@ -213,10 +214,18 @@ static void hashmeter(int thr_id, struct timeval *tv_start,
 	khashes = hashes_done / 1000.0;
 	secs = (double)diff.tv_sec + ((double)diff.tv_usec / 1000000.0);
 
-	printf("HashMeter(%d): %lu hashes, %.2f khash/sec\n",
-	       thr_id, hashes_done,
-	       khashes / secs);
+	hashrates[thr_id] = khashes / secs;
+	
+	if (opt_debug)
+		printf("HashMeter(%d): %lu hashes, %.2f khash/sec\n",
+			   thr_id, hashes_done,
+			   khashes / secs);
 }
+
+static void print_hashmeter(double hashrate) {
+	printf("HashMeter: %.2f Mhash/sec\n", hashrate / 1000);
+}
+
 
 static bool getwork(struct work_t *work) {
 	static const char *rpc_req = "{\"method\": \"getwork\", \"params\": [], \"id\":0}\r\n";
@@ -481,6 +490,8 @@ int main (int argc, char *argv[])
 
 	char name[32];
 
+	memset(hashrates, 0, sizeof(hashrates));
+
 	/* start mining threads */
 	for (i = 0; i < nDevs; i++) {
 		pthread_t t;
@@ -503,7 +514,12 @@ int main (int argc, char *argv[])
 	/* main loop */
 	while (program_running) {
 		sleep(STAT_SLEEP_INTERVAL);
-		/* do nothing */
+		double hashrate = 0;
+		for(i = 0; i < nDevs; i++)
+			hashrate += hashrates[i];
+
+		print_hashmeter(hashrate);
+
 	}
 
 	return 0;
