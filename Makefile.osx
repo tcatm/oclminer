@@ -1,0 +1,20 @@
+LIBS=-ljansson -lcurl
+
+DEFS=
+DEBUGFLAGS=
+CFLAGS=-I/usr/local/include -O3 -Wformat $(DEBUGFLAGS) $(DEFS)
+LDFLAGS=-framework OpenCL -L/usr/local/lib
+HEADERS=
+
+OBJS=miner.o ocl.o findnonce.o util.o
+
+all: oclminer
+
+%.o: %.c $(HEADERS)
+	gcc -c $(CFLAGS) -o $@ $<
+
+oclminer: $(OBJS) 
+	gcc $(CFLAGS) $(LDFLAGS) -o $@ $^ $(LIBS)
+
+clean:
+	-rm *.o oclminer
