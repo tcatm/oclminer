@@ -313,7 +313,7 @@ static void *miner_thread(void *thr_id_int)
 		hashes_done = 0;
 		gettimeofday(&tv_start, NULL);
 	
-		int threads = 102400;
+		int threads = 102400 * 4;
 		globalThreads[0] = threads;
 		localThreads[0] = 128;
 
