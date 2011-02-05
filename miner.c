@@ -41,6 +41,7 @@ enum {
 int opt_debug = false;
 int opt_protocol = false;
 int opt_ndevs = false;
+int opt_pool = false;
 static int opt_retries = 10;
 static bool program_running = true;
 static const bool opt_time = true;
@@ -68,6 +69,9 @@ static struct option_help options_help[] = {
 	{ "debug",
 	  "(-D) Enable debug output (default: off)" },
 
+	{ "pool",
+	  "(-m) Enable pool mode (default: off)" },
+
 	{ "protocol-dump",
 	  "(-P) Verbose dump of protocol-level activities (default: off)" },
 
@@ -92,21 +96,8 @@ static struct option options[] = {
 	{ "url", 1, NULL, 1001 },
 	{ "userpass", 1, NULL, 1002 },
 	{ "ndevs", 0, NULL, 'n' },
+	{ "pool", 0, NULL, 'm' },
 	{ }
-};
-
-struct work_t {
-	unsigned char	data[128];
-	unsigned char	hash1[64];
-	unsigned char	midstate[32];
-	unsigned char	target[32];
-
-	unsigned char	hash[32];
-	uint32_t		output[MAXTHREADS];
-	uint32_t		res_nonce;
-	bool			valid;
-	uint32_t		ready;
-	dev_blk_ctx		blk;
 };
 
 static bool jobj_binary(const json_t *obj, const char *key,
@@ -247,7 +238,7 @@ static bool getwork(struct work_t *work) {
 	return true;
 } 
 
-static void submit_nonce(struct work_t *work, uint32_t nonce) {
+void submit_nonce(struct work_t *work, uint32_t nonce) {
        work->data[64+12+0] = (nonce>>0) & 0xff;
        work->data[64+12+1] = (nonce>>8) & 0xff;
        work->data[64+12+2] = (nonce>>16) & 0xff;
@@ -358,15 +349,19 @@ static void *miner_thread(void *thr_id_int)
 				if(res[j]) { 
 					uint32_t start = (work[res_frame].res_nonce + j)<<10;
 					uint32_t my_g, my_nonce;
-					my_g = postcalc_hash(&work[res_frame].blk, start, start + 1024, &my_nonce);
-					if (opt_debug)
-						fprintf(stderr, "DEBUG: H0 within %u .. %u, best G = %08x, nonce = %08x\n", start, start + 1024, my_g, my_nonce);
-					if(my_g < bestG) {
-						bestG = my_g;
-						nonce = my_nonce;
+					my_g = postcalc_hash(&work[res_frame].blk, &work[res_frame], start, start + 1024, &my_nonce, opt_pool);
+
+					if (!opt_pool) {
 						if (opt_debug)
-							fprintf(stderr, "new best\n");
-					}       
+							fprintf(stderr, "DEBUG: H0 within %u .. %u, best G = %08x, nonce = %08x\n", start, start + 1024, my_g, my_nonce);
+
+						if(my_g < bestG) {
+							bestG = my_g;
+							nonce = my_nonce;
+							if (opt_debug)
+								fprintf(stderr, "new best\n");
+						}       
+					}
 
 					rc = true;
 				}       
@@ -376,7 +371,7 @@ static void *miner_thread(void *thr_id_int)
 
 			uint32_t *target = (uint32_t *)(work[res_frame].target + 24);
 
-			if(rc && bestG <= *target) {
+			if(!opt_pool && rc && bestG <= *target) {
 				printf("Found solution for %08x: %08x %u\n", *target, bestG, nonce);
 
 				submit_nonce(&work[res_frame], nonce);
@@ -427,6 +422,9 @@ static void parse_arg (int key, char *arg)
 	int v, i;
 
 	switch(key) {
+	case 'm':
+		opt_pool = true;
+		break;
 	case 'n':
 		opt_ndevs = true;
 		break;
@@ -466,7 +464,7 @@ static void parse_cmdline(int argc, char *argv[])
 	int key;
 
 	while (1) {
-		key = getopt_long(argc, argv, "DPh?n", options, NULL);
+		key = getopt_long(argc, argv, "DPh?nm", options, NULL);
 		if (key < 0)
 			break;
 

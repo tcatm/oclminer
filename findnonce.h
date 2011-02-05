@@ -16,6 +16,20 @@ typedef struct {
 	cl_uint fW01r; cl_uint fcty_e; cl_uint fcty_e2;
 } dev_blk_ctx;
 
-extern void precalc_hash(dev_blk_ctx *blk, uint32_t *state, uint32_t *data);
-extern uint32_t postcalc_hash(dev_blk_ctx *blk, uint32_t start, uint32_t end, uint32_t *best_nonce);
+struct work_t {
+	unsigned char	data[128];
+	unsigned char	hash1[64];
+	unsigned char	midstate[32];
+	unsigned char	target[32];
 
+	unsigned char	hash[32];
+	uint32_t		output[MAXTHREADS];
+	uint32_t		res_nonce;
+	uint32_t		valid;
+	uint32_t		ready;
+	dev_blk_ctx		blk;
+};
+
+extern void precalc_hash(dev_blk_ctx *blk, uint32_t *state, uint32_t *data);
+extern uint32_t postcalc_hash(dev_blk_ctx *blk, struct work_t *work, uint32_t start, uint32_t end, uint32_t *best_nonce, int pool_mode);
+extern void submit_nonce(struct work_t *work, uint32_t nonce);
