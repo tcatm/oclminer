@@ -132,7 +132,7 @@ void precalc_hash(dev_blk_ctx *blk, uint32_t *state, uint32_t *data) {
   R(E, F, G, H, A, B, C, D, P(u+4), SHA256_K[u+4]); \
   R(D, E, F, G, H, A, B, C, P(u+5), SHA256_K[u+5])
 
-uint32_t postcalc_hash(dev_blk_ctx *blk, struct work_t *work, uint32_t start, uint32_t end, uint32_t *best_nonce, int pool_mode) {
+uint32_t postcalc_hash(dev_blk_ctx *blk, struct work_t *work, uint32_t start, uint32_t end, uint32_t *best_nonce, int pool_mode, unsigned int *h0count) {
 	cl_uint A, B, C, D, E, F, G, H;
 	cl_uint W[16];
 	cl_uint nonce;
@@ -169,6 +169,8 @@ uint32_t postcalc_hash(dev_blk_ctx *blk, struct work_t *work, uint32_t start, ui
 		FR(48); PFR(56);
 
 		if(H == 0xA41F32E7) {
+			(*h0count)++;
+
 			if (pool_mode) 
 				submit_nonce(work, nonce);
 

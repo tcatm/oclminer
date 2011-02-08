@@ -22,6 +22,7 @@
 #include <getopt.h>
 #include <jansson.h>
 #include <inttypes.h>
+#include <math.h>
 #include "miner.h"
 
 #include "findnonce.h"
@@ -193,24 +194,31 @@ out:
 	free(hexstr);
 }
 
+double time2secs(struct timeval *tv_start) {
+	struct timeval tv_end, diff;
+	double secs;
+
+	gettimeofday(&tv_end, NULL);
+	timeval_subtract(&diff, &tv_end, tv_start);
+	secs = (double)diff.tv_sec + ((double)diff.tv_usec / 1000000.0);
+
+	return secs;
+}
+
 static void hashmeter(int thr_id, struct timeval *tv_start,
 		      unsigned long hashes_done)
 {
-	struct timeval tv_end, diff;
 	double khashes, secs;
 
-	gettimeofday(&tv_end, NULL);
-
-	timeval_subtract(&diff, &tv_end, tv_start);
+	secs = time2secs(tv_start);
 
 	khashes = hashes_done / 1000.0;
-	secs = (double)diff.tv_sec + ((double)diff.tv_usec / 1000000.0);
 
 	hashrates[thr_id] = khashes / secs;
 }
 
 static void print_hashmeter(double hashrate, char *rates) {
-	printf("\r                                                                            \rHashMeter: %.2f Mhash/sec (%s)", hashrate / 1000, rates);
+	printf("\r                                                                            \rHashMeter: %.2f Mhash/sec (%s)", hashrate, rates);
 	fflush(stdout);
 }
 
@@ -280,6 +288,11 @@ static void *miner_thread(void *thr_id_int)
 	unsigned long hashes_done;
 	hashes_done = 0;
 
+	unsigned int h0count = 0;
+	struct timeval tv_start0;
+
+	gettimeofday(&tv_start0, NULL);
+
 	while (1) {
 		struct timeval tv_start;
 		bool rc;
@@ -317,9 +330,6 @@ static void *miner_thread(void *thr_id_int)
 			need_work = false;
 		}
 
-		if (hashes_done != 0)
-			hashmeter(thr_id, &tv_start, hashes_done);
-
 		gettimeofday(&tv_start, NULL);
 	
 		int threads = 102400 * 4;
@@ -350,7 +360,7 @@ static void *miner_thread(void *thr_id_int)
 				if(res[j]) { 
 					uint32_t start = (work[res_frame].res_nonce + j)<<10;
 					uint32_t my_g, my_nonce;
-					my_g = postcalc_hash(&work[res_frame].blk, &work[res_frame], start, start + 1024, &my_nonce, opt_pool);
+					my_g = postcalc_hash(&work[res_frame].blk, &work[res_frame], start, start + 1026, &my_nonce, opt_pool, &h0count);
 
 					if (!opt_pool) {
 						if (opt_debug)
@@ -381,6 +391,13 @@ static void *miner_thread(void *thr_id_int)
 
 				need_work = true;
 			}
+
+		}
+
+		if (h0count != 0) {
+			double secs;
+			secs = time2secs(&tv_start0);
+			hashrates[thr_id] = h0count * pow(2, 256) / (secs * 1e6 * (pow(2, 224) - 1.0));
 		}
 
         status = clEnqueueReadBuffer(clState->commandQueue, clState->outputBuffer, CL_TRUE, 0, 
@@ -541,7 +558,7 @@ int main (int argc, char *argv[])
 
 		for(i = 0; i < nDevs; i++) {
 			hashrate += hashrates[i];
-			sprintf(buffer, "%.02f", hashrates[i] / 1000);
+			sprintf(buffer, "%.02f", hashrates[i]);
 			strcat(rates, buffer);
 
 			if (i != nDevs-1) strcat(rates, " ");

@@ -31,5 +31,5 @@ struct work_t {
 };
 
 extern void precalc_hash(dev_blk_ctx *blk, uint32_t *state, uint32_t *data);
-extern uint32_t postcalc_hash(dev_blk_ctx *blk, struct work_t *work, uint32_t start, uint32_t end, uint32_t *best_nonce, int pool_mode);
+extern uint32_t postcalc_hash(dev_blk_ctx *blk, struct work_t *work, uint32_t start, uint32_t end, uint32_t *best_nonce, int pool_mode, unsigned int *h0count);
 extern void submit_nonce(struct work_t *work, uint32_t nonce);
